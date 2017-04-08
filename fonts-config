@@ -1,0 +1,2009 @@
+#! /usr/bin/perl -w
+#
+# Copyright (c) 2000-2014 SUSE Linux AG, Nuernberg, Germany.
+# All rights reserved.
+########################################################################
+# create a man-page with:
+#
+#     pod2man --section 1 --center=" " fonts-config | gzip -9 -c > fonts-config.1.gz
+#     cp fonts-config.1.gz /usr/share/man/man1/fonts-config.1.gz
+
+=head1 NAME
+
+fonts-config - configures installed X11 fonts.
+
+=head1 SYNOPSIS
+
+fonts-config [B<OPTION>]...
+
+=head1 OPTIONS
+
+=over 4
+
+=item B<--force-hintstyle> string
+
+By default, "hintstyle" is chosen depending on value of autohint for given font.
+Apart from exceptions (e. g. IPA fonts for example): for fonts, with good 
+instructions*) "hintfull" used and for other fonts "hintslight" is used. You can 
+enforce hintstyle here. Possible values are "none", "hintnone", "hintslight", 
+"hintmedium" and "hintfull". This option can be overriden by --force-bw* options, 
+where "hintfull" is always used.
+
+*) see /usr/share/doc/packages/fonts-config/infinality/good-hinted-tt-fonts.list 
+for reference
+
+=item B<--force-autohint>
+
+By default, FreeType's autohinter is used for fonts, which have no or not good
+native hinting instructions. You can enforce to use autohinter even for
+fonts with good instructions*) with this option. hintstyle="hintslight" is used then,
+when --force-hintstyle do not everrides it.
+
+*) see /usr/share/doc/packages/fonts-config/infinality/good-hinted-tt-fonts.list 
+for fonts with good hinting instructions
+
+=item B<--force-bw>
+
+FreeType is instructed to use antialias (font smoothing) in rendering by default. 
+You can override this settings with this option, which means that fonts will not 
+bee smoothed but contranst with background will be high, which can suit 
+one's eyes. Liberation Sans family is then automatically prefered over DejaVu Sans. 
+Force using bitmap strikes from the font. Hintstlyle is forced to "hintfull" 
+(this even overrides --force-hintstyle option). 
+
+This can produce bitmap quality rendering for good instructed fonts.
+
+=item B<--force-bw-monospace>
+
+This option has lower impact than --force-bw. Sets black and white rendering only
+for good hinted monospaced fonts (e. g. Liberation Mono). "hintfull" hintstyle is 
+used.
+
+=item B<--lcd-filter> string
+
+Defines lcd filter to be used. If not overriden by this option, "lcdnone" is used.
+Possible values are "lcdnone", "lcddefault", "lcdlight" and "lcdlegacy".
+
+=item B<--rgba> string
+
+Defines lcd subpixel arrangement and orientation for your monitor. Default value
+is "none". Possible values are "none", "rgb", "vrgb", "bgr", "vbgr", "unknown".
+
+=item B<--(no)ebitmaps>
+
+Use (or don't use) embedded bitmaps from font.
+
+=item B<--ebitmapslang> string
+
+Limit use of embedded bitmaps to specified in string separated by colons.
+
+=item B<--sans-families> string
+
+Given colon-separated list of prefered sans families, they will be
+prefered over system preference list of sans families*).
+
+*) see /etc/fonts/conf.d/60-family-prefer.conf for details
+
+=item B<--mono-families> string
+
+Given colon-separated list of prefered monospace families, they will be
+prefered over system preference list of monospace families*).
+
+*) see /etc/fonts/conf.d/60-family-prefer.conf for details
+
+=item B<--serif-families> string
+
+Given colon-separated list of prefered serif families, they will be
+prefered over system preference list of serif families*).
+
+*) see /etc/fonts/conf.d/60-family-prefer.conf for details
+
+=item B<--(no)metric>
+
+Value of B<--*-families> can be overriden when document 
+or GUI is requesting metric compatible font as defined
+    in /etc/fonts/conf.d/30-metric-aliases.conf,
+e. g. request to Times New Roman will get Liberation Serif
+even if other family is explicitely prefered by B<--serif-families>
+option. (hint, that's because binding="same" in that fontconfig)
+
+You can change this default behaviour with B<--nometric>, but be careful
+with that. Metric compatibility means that every glyph, say 'A', has 
+the same width and height in both fonts, so document should have same 
+line wraps for example.
+
+=item B<--(no)forcefpl>
+
+Value of B<--*-families> can be overriden, when document or GUI is 
+requesting some particular font. This is very often intended.
+
+With B<--forcefpl>, it is possible to override all such requests with 
+fonts listed in family preference lists (FPLs).
+
+=item B<--(no)ttcap>
+
+Generate (or don't generate) TTCap entries.  TTCap entries can be used
+with the xtt module and with recent versions of the freetype module.
+
+=item B<--(no)java>
+
+Generate (or don't generate) font setup for Java.
+
+=item B<-u>, B<--user>
+
+run fontconfig setup for user. it reads ~/.config/fontconfig/fonts-config,
+which is user analogy of /etc/sysconfig/fonts-config.
+
+=item B<-U>, B<--remove-user-setting>
+
+remove user setting created by by B<--user>.
+
+=item B<-f>, B<--force>
+
+Force the update of all generated files even if it appears to be
+unnecessary according to the time stamps.
+
+=item B<-q>, B<--quiet>
+
+Work silently, unless an error occurs.
+
+=item B<-v>, B<--verbose>
+
+Print some progress messages to standard output.
+
+=item B<-d>, B<--debug>
+
+Print a lot of debugging messages to standard output.
+
+=item B<--version>
+
+Display version and exit.
+
+=item B<-h>, B<--help>
+
+Display a short help message and exit.
+
+=item B<-i>, B<--info>
+
+Lists important involved input and output files to fonts-config script.
+
+=back
+
+=head1 DESCRIPTION
+
+Configures installed X11 fonts. Basically it does the following
+things:
+
+=over 4
+
+=item B<creates fonts.scale and fonts.dir files>
+
+fonts-config currently assumes all fonts installed in /usr/share/fonts
+tree.
+
+For each subdirectory, the time stamps of the directory, the 
+B<fonts.scale> file, the B<fonts.dir> file and an extra time stamp
+file B<.fonts-config-timestamp> are checked.  If not all the time
+stamps are equal or any of these files is missing, the B<fonts.scale>
+and B<fonts.dir> files will be updated as follows:
+
+First, B<fonts.scale> file is created by calling B<mkfontscale>.
+
+Then, the entries found in the B<fonts.scale> file are merged with
+the entries from all B<fonts.scale.*> files.
+
+B<fonts.scale.*> files may be supplied by rpm-packages or manually
+added by the user to override or amend the entries created
+automatically by B<mkfontscale>. Entries in a B<fonts.scale.*> file
+have higher priority than entries automatically created by
+B<mkfontscale>.  All entries generated automatically by B<mkfontscale>
+for a certain font file are discarded if any B<fonts.scale.*> file
+contains an entry for the same font file.
+
+After the final list of entries has been written back to
+B<fonts.scale>, B<mkfontdir> is called.
+
+Finally, the time stamps of the directory, B<fonts.scale>,
+B<fonts.dir>, and B<.fonts-config-timestamp> are set to the time when
+B<fonts-config> started.
+
+=item B<generate rendering options>
+
+Generates /etc/fonts/conf.d/10-rendering-options.conf according to
+rendering options or its bound sysconfig variables. See
+--force-hintstyle, --force-autohint, --force-bw, --force-bw-monospace,
+--lcdfilter, --rgba, --ebitmaps, --ebitmapslang options.
+
+=item B<call fc-cache>
+
+creates cache files for fonts to use with client side font rendering
+via fontconfig/libXft, for details see L<fc-cache(1)>.
+B<fonts.cache-2> cache files are generated in B</var/cache/fontconfig>
+for all directories which are configured in B</etc/fonts/fonts.conf>
+and all their subdirectories.
+
+=back
+
+Usually B<fonts-config> is called automatically when package containing 
+font is installed, upgraded or removed. But you can also execute 
+B<fonts-config> directly, which is mainly useful to debug it (use 
+--debug flag).
+
+=head1 FILES
+
+=over 4
+
+=item B</etc/sysconfig/fonts-config>
+
+Default values for some command line options of fonts-config are read
+from this file if it exists.  The options currently supported in
+this file are:
+
+=item FORCE_HINSTYLE
+
+can be set to "none", "hintfull", "hintmedium" , "hintslight" or "hintnone" and 
+is bound to B<--force-hintstyle> option.
+
+=item FORCE_AUTOHINT
+
+can be set to "yes" or "no" and is bound to B<--force-autohint> option.
+
+=item FORCE_BW
+
+can be set to "yes" or "no" and is bound to B<--force-bw> option.
+
+=item FORCE_BW_MONOSPACE
+
+can be set to "yes" or "no" and is bound to B<--force-bw-monospace> option.
+
+=item USE_LCDFILTER
+
+can be set to "lcdnone", "lcddefault", "lcdlight" and "lcdlegacy" and
+is bound to B<--lcdfilter> option.
+
+=item USE_RGBA
+
+can be set to "none", "rgb", "vrgb", "bgr", "vrgb" or "unknown" and is
+bound to B<--rgba> option.
+
+=item USE_EMBEDDED_BITMAPS
+
+can be set to "yes" or "no" and sets the default for the option 
+B<--ebitmaps>.
+
+=item EMBEDDED_BITMAPS_LANGUAGES
+
+can be set to colon separated list of languages, sets the default for
+the B<--ebitmapslang>
+
+=item PREFER_SANS_FAMILIES
+
+can be set to colon separated list of sans families, bound to the
+B<--sans-families> option.
+
+=item PREFER_SERIF_FAMILIES
+
+can be set to colon separated list of serif families, bound to the
+B<--serif-families> option.
+
+=item PREFER_MONO_FAMILIES
+
+can be set to colon separated list of monospace families, bound to the
+B<--mono-families> option.
+
+=item SEARCH_METRIC_COMPATIBLE
+
+can be set to "yes" or "no" and is bound to B<--(no)metric> option.
+
+=item FORCE_FAMILY_PREFERENCE_LISTS
+
+can be set to "yes" or "no" and is bound to B<--(no)forcefpl> option.
+
+=item GENERATE_TTCAP_ENTRIES
+
+can be set to "yes" or "no" and sets the default for the option B<--(no)ttcap>.
+
+=item GENERATE_JAVA_FONT_SETUP
+
+can be set to "yes" or "no" and sets the default for the option 
+B<--(no)java>.
+
+=back
+
+=head1 SEE ALSO
+
+L<fc-cache(1)>, L<cidfont-x11-config(1)>, L<mkfontdir(1)>, L<mkfontscale(1)>
+
+=head1 AUTHOR
+
+Mike FABIAN, 2003, Petr Gajdos <I<pgajdos@suse.com>>, 2014.
+
+=cut
+
+########################################################################
+
+use utf8;
+use English;
+use Getopt::Long;
+use File::Basename;
+use File::Path qw(mkpath);
+use Env;
+use strict;
+
+my $script_start_time = time();
+my $version = 20150424;
+
+#
+#  OPTIONS
+#
+
+my $OPT_USER = 0;
+my $OPT_REMOVE_USER_SETTING = 0;
+my $OPT_FORCE = 0;
+my $OPT_QUIET = 0;
+my $OPT_VERBOSE = 0;
+my $OPT_DEBUG = 0;
+my $OPT_FHINTSTYLE = "none";
+my $OPT_FAUTOHINT = 0;
+my $OPT_FBW = 0;
+my $OPT_FBWMONOSPACE = 0;
+my $OPT_LCDFILTER = "none";
+my $OPT_RGBA = "none";
+my $OPT_EBITMAP = 1;
+my $OPT_EBITMAP_LANG = "ja:ko:zh-CN:zh-TW:zh-HK:zh-SG";
+my $OPT_SANS_FAMILIES = "";
+my $OPT_SERIF_FAMILIES = "";
+my $OPT_MONO_FAMILIES = "";
+my $OPT_SEARCH_METRIC_COMPATIBLE = 1;
+my $OPT_FORCE_FPL = 0;
+my $OPT_TTCAP = 0;
+my $OPT_JAVA = 1;
+my $OPT_VERSION = 0;
+my $OPT_HELP = 0;
+my $OPT_INFO = 0;
+
+my $VERBOSITY_QUIET   = 0;
+my $VERBOSITY_VERBOSE = 1;
+my $VERBOSITY_DEBUG   = 256;
+my $VERBOSITY         = $VERBOSITY_QUIET;
+
+# process defaults from sysconfig
+
+my %sysconfig_options = (
+                         "VERBOSITY"                      , "VERBOSITY",
+                         "FORCE_HINTSTYLE"                , "OPT_FHINTSTYLE",
+                         "FORCE_AUTOHINT"                 , "OPT_FAUTOHINT",
+                         "FORCE_BW"                       , "OPT_FBW",
+                         "FORCE_BW_MONOSPACE"             , "OPT_FBWMONOSPACE",
+                         "USE_LCDFILTER"                  , "OPT_LCDFILTER",
+                         "USE_RGBA"                       , "OPT_RGBA",            
+                         "USE_EMBEDDED_BITMAPS"           , "OPT_EBITMAP",
+                         "EMBEDDED_BITMAPS_LANGUAGES"     , "OPT_EBITMAP_LANG",
+                         "PREFER_SANS_FAMILIES"           , "OPT_SANS_FAMILIES",
+                         "PREFER_SERIF_FAMILIES"          , "OPT_SERIF_FAMILIES",
+                         "PREFER_MONO_FAMILIES"           , "OPT_MONO_FAMILIES",
+                         "SEARCH_METRIC_COMPATIBLE"       , "OPT_SEARCH_METRIC_COMPATIBLE",
+                         "FORCE_FAMILY_PREFERENCE_LISTS"  , "OPT_FORCE_FPL",
+                         "GENERATE_TTCAP_ENTRIES"         , "OPT_TTCAP",
+                         "GENERATE_JAVA_FONT_SETUP"       , "OPT_JAVA",
+                        );
+
+my $xdg_prefix = "$ENV{HOME}/.config/";
+my %files = (
+                 "sysconfig file",                      "/etc/sysconfig/fonts-config",
+                 "user sysconfig file",                 "fontconfig/fonts-config",
+                 "rendering config template",           "/usr/share/fonts-config/10-rendering-options.conf.template",
+                 "rendering config",                    "/etc/fonts/conf.d/10-rendering-options.conf",
+                 "user rendering config",               "fontconfig/rendering-options.conf",
+                 "metric compatibility symlink",        "/etc/fonts/conf.d/30-metric-aliases.conf",
+                 "metric compatibility config",         "/etc/fonts/conf.d/30-metric-aliases.conf",
+                 "metric compatibility avail",          "/usr/share/fontconfig/conf.avail/30-metric-aliases.conf",
+                 "metric compatibility bw symlink",     "/etc/fonts/conf.d/31-metric-aliases-bw.conf",
+                 "local family list",                   "/etc/fonts/conf.d/58-family-prefer-local.conf",
+                 "user family list",                    "fontconfig/family-prefer.conf",
+                 "java fontconfig properties template", "/usr/share/fonts-config/fontconfig.SUSE.properties.template",
+                 "java fontconfig properties",          "/usr/lib*/jvm/jre/lib/fontconfig.SUSE.properties",
+            );
+
+
+# read sysconfig and userconfig if --user was given
+get_option_defaults_from_sysconfig($files{'sysconfig file'});
+if (grep(/^--user$/, @ARGV)) {
+  # read variables on the top on the system ones
+  get_option_defaults_from_sysconfig($xdg_prefix.$files{'user sysconfig file'});
+}
+
+# process command line options
+my %opt;
+unless (GetOptions(\%opt,
+                   'user|u',                 \$OPT_USER,
+                   'remove-user-setting|r',  \$OPT_REMOVE_USER_SETTING,
+                   'force|f',                \$OPT_FORCE,
+                   'quiet|q',                \$OPT_QUIET,
+                   'verbose|v',              \$OPT_VERBOSE,
+                   'debug|d',                \$OPT_DEBUG,
+                   'force-hintstyle=s',      \$OPT_FHINTSTYLE,
+                   'force-autohint+',        \$OPT_FAUTOHINT,
+                   'force-bw+',              \$OPT_FBW,
+                   'force-bw-monospace+',    \$OPT_FBWMONOSPACE,
+                   'lcdfilter=s',            \$OPT_LCDFILTER,
+                   'rgba=s',                 \$OPT_RGBA,
+                   'ebitmaps!',              \$OPT_EBITMAP,
+                   'ebitmapslang=s',         \$OPT_EBITMAP_LANG,
+                   'sans-families=s',        \$OPT_SANS_FAMILIES,
+                   'serif-families=s',       \$OPT_SERIF_FAMILIES,
+                   'mono-families=s',        \$OPT_MONO_FAMILIES,
+                   'metric!',                \$OPT_SEARCH_METRIC_COMPATIBLE,
+                   'forcefpl!',              \$OPT_FORCE_FPL,
+                   'ttcap!',                 \$OPT_TTCAP,
+                   'java!',                  \$OPT_JAVA,
+                   'version',                \$OPT_VERSION,
+                   'help|h',                 \$OPT_HELP,
+                   'info|i',                 \$OPT_INFO,
+                  )) {
+  &usage ();
+  exit 1;
+}
+
+#
+#  VERSION
+# 
+
+if ($OPT_VERSION) {
+  print "fonts-config $version\n";
+  exit 0;
+}
+
+#
+#  HELP
+#
+
+if ($OPT_HELP) {
+  &usage ();
+  exit 0;
+}
+
+#
+#  INFO
+#
+
+if ($OPT_INFO) {
+  # this is read by yast-fonts, so may be that
+  # change should be reflected in this yast module
+  print "Involved Files\n";
+  for my $f (keys %files) {
+    print "  $f: $files{$f}\n"
+  }
+  exit 0;
+}
+
+#
+# VERBOSITY
+#
+
+if ($OPT_DEBUG) {
+  $VERBOSITY = $VERBOSITY_DEBUG;
+}
+elsif ($OPT_QUIET) {
+  $VERBOSITY = $VERBOSITY_QUIET;
+}
+elsif ($OPT_VERBOSE) {
+  $VERBOSITY = $VERBOSITY_VERBOSE;
+}
+
+#
+# REMOVE USER SETTING
+#
+
+if ($OPT_REMOVE_USER_SETTING) {
+  my_remove_file($xdg_prefix.$files{'user sysconfig file'});
+  my_remove_file($xdg_prefix.$files{'user rendering config'});
+  my_remove_file($xdg_prefix.$files{'user family list'});
+  exit 0;
+}
+
+if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+    print $OPT_USER ? "USER mode ($ENV{USER})\n" : "SYSTEM mode\n";
+}
+
+#
+# SYSCONFIG VARS -- debug output
+#
+
+no strict "vars";
+no warnings;
+if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+  print "--- sysconfig options (read from $files{'sysconfig file'}".
+        ($OPT_USER ? ", $xdg_prefix$files{'user sysconfig file'}" : "").
+        "):\n";
+  for my $i (keys %sysconfig_options) {
+    if (defined eval ("\$$i")) {
+      printf "$i=%s\n", eval("\$$i");
+    }
+  }
+  print "---\n";
+}
+use warnings;
+use strict;
+
+#
+# UID 0 CHECK
+#
+
+if (!$OPT_USER && $UID != 0 && $ENV{USER} !~ /root/) {
+    print "*** error: no root permissions; rerun with --user for user fontconfig setting\n";
+    exit 1;
+}
+
+#
+# MKFONTSCALE, MKFONTSDIR
+#
+
+if (!$OPT_USER) {
+  mkfont_scale_dir(); 
+}
+
+# The following two calls may change files in /etc/fonts, therefore
+# they have to be called *before* fc-cache. If anything is
+# changed in /etc/fonts after calling fc-cache, fontconfig
+# will think that the cache files are out of date again.
+
+#
+# FONTCONFIG RENDERING SETUP
+#
+
+rendering_options($OPT_USER);
+family_preference_config($OPT_USER);
+
+#
+# FONTCONFIG CACHE
+#
+
+if (!$OPT_USER) {
+  run_fccache ("");
+  run_fccache ("32");
+  run_fccache ("64");
+}
+
+#
+# FONT DATABASE 
+#
+
+if (!$OPT_USER) {
+  run_fp_rehash ();
+}
+
+# generate_java_font_setup uses fontconfig,
+# therefore it has to be called *after* fc-cache
+
+if (!$OPT_USER && $OPT_JAVA) {
+  generate_java_font_setup ();
+}
+
+if (!$OPT_USER) {
+  reload_xfs_config ();
+}
+
+exit 0;
+
+########################################################################
+#
+# usage
+#
+
+sub usage {
+  print "Usage: fonts-config [option] ...\n";
+  print "-u, --user                      Run fontconfig setup for user.\n";
+  print "-f, --force                     Force the update of all generated files even\n";
+  print "                                if it appears unnecessary according to the time stamps\n";
+  print "-q, --quiet                     Work silently, unless an error occurs.\n";
+  print "-v, --verbose                   Print some progress messages to standard output.\n";
+  print "-d, --debug                     Print a lot of debugging messages to standard output.\n";
+  print "    --force-hintstyle string    Use hintfull, hintmedium, hintslight or hintnone \n";
+  print "    --force-autohint            Use autohint even for well hinted fonts.\n";
+  print "    --force-bw                  Do not use antialias.\n";
+  print "    --force-bw-monospace        Do not use antialias for well instructed monospace fonts.\n";
+  print "    --lcdfilter string          Which lcdfilter to use: lcdnone, lcddefault, lcdlight,\n";
+  print "                                lcdlegacy\n";
+  print "    --rgba string               Which subpixel arangement your monitor use: none, rgb,\n";
+  print "                                vrgb, bgr, vbgr, unknown\n";
+  print "    --(no)ebitmaps              Whether to use embedded bitmaps or not.\n";
+  print "    --ebitmapslang string       Argument contains a list of colon\n";
+  print "                                separated languages, for example \"ja:ko:zh-CN\" \n";
+  print "                                which means \"use embedded bitmaps only for\n";
+  print "                                fonts supporting Japanese, Korean, or simplified Chinese.\n";
+  print "    --(no)ttcap                 generate TTCap entries.\n";
+  print "    --(no)java                  generate font setup for Java.\n";
+  print "    --version                   Display version and exit.\n";
+  print "-h, --help                      Display this help and exit.\n";
+  print "\n";
+  print "See fonts-config(1) manual page for details.\n";
+  exit 1;
+}
+
+########################################################################
+#
+#  get_option_defaults_from_sysconfig -- read sysconfig defaults for 
+#    options from the sysconfig file
+#
+
+sub get_option_defaults_from_sysconfig {
+  my $sysconfig_file = shift;
+
+  if (open (SYSCONFIG, "$sysconfig_file")) {
+    no strict "vars";
+    # print "reading defaults from $sysconfig.\n";
+    while (<SYSCONFIG>) {
+      chomp ($ARG);
+      if ($ARG =~ /([^#]*)#?.*/) { # strip comments
+        $ARG = $1;
+      }
+      eval ("\$$ARG;");
+    }
+    close (SYSCONFIG);
+    for my $i (keys %sysconfig_options) {
+      if (! defined eval("\$$i")) {
+        next;
+      }
+      if (eval ("\$$i") =~ /^yes$/i) {
+        eval("\$$sysconfig_options{$i}=1");
+      }
+      elsif (eval ("\$$i") =~ /^no$/i) {
+        eval("\$$sysconfig_options{$i}=0");
+      }
+      elsif (eval ("\$$i") =~ /^[0-9]+$/) { # Type integer
+        eval("\$$sysconfig_options{$i}=\$$i");
+      }
+      elsif (eval ("\$$i") =~ /^[-:a-zA-Z0-9 &,]+$/) { # Type string
+        eval("\$$sysconfig_options{$i}=\$$i");
+      }
+      else { # this case also occurs when the variable is the empty string!
+        eval("\$$sysconfig_options{$i}=0");
+      }
+    }
+  }
+  else {
+    # VERBOSITY still not defined!
+    print "NOTE: $sysconfig_file doesn't exist, using builtin defaults.\n";
+  }
+}
+
+########################################################################
+#
+# mkfont_scale_dir -- run mkfontscale and mkfontdir in font directories
+#
+
+sub mkfont_scale_dir {
+  my @x11_font_dirs = x11_font_dirs();
+
+  if ($VERBOSITY == $VERBOSITY_VERBOSE) {
+    print "Creating fonts.{scale,dir} files ";
+  }
+  if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+    print "--- creating fonts.{scale,dir} files\n";
+  }
+  for my $dir (@x11_font_dirs) {
+    make_fonts_scale_and_fonts_dir ($dir);
+    if ($VERBOSITY == $VERBOSITY_VERBOSE) {
+      print "."; # "progress bar"
+    }
+  }
+  if ($VERBOSITY == $VERBOSITY_VERBOSE) {
+    print "\n";
+  }
+  if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+    print "---\n"
+  }
+}
+
+# return existing system font dirs; assume all are under /usr/share/fonts
+sub x11_font_dirs {
+  my @blacklist_dirs = ("/usr/share/fonts", 
+                        "/usr/share/fonts/encodings/large");
+  my @dirs = split(/\n/,`find -L /usr/share/fonts -type d`);
+
+  for my $bdir (@blacklist_dirs) {
+    @dirs = grep { $_ ne $bdir } @dirs;
+  }
+
+  if ($VERBOSITY >= $VERBOSITY_DEBUG)
+  {
+    print "--- font directories\n";
+    for my $dir (@dirs) {
+      print "$dir\n";
+    }
+    print "---\n";
+  }
+
+  return @dirs;
+}
+
+########################################################################
+#
+# make_fonts_scale_and_fonts_dir -- create fonts.scale and fonts.dir
+#   in font dirs
+
+sub fix_fonts_scale {
+  my ($dir) = @_;
+  my ($file, $options, $font, $xlfd);
+  my %fonts_scale_entries = ();
+  my %blacklist = ();
+
+  if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+    print "----------------------------------------------------------------------\n";
+    print "fix fonts.scale in $dir:\n";
+  }
+  ######################################################################
+  # first parse the "handmade" fonts.scale.* files:
+  for $file (glob ("$dir/fonts.scale.*")) {
+    if (-e $file) {
+      if ($file =~ /~$|\.swp$|\.bak$|\.sav$|\.save$|\.rpmsave$|\.rpmorig|\.rpmnew$/) {
+        if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+          print "$file is considered a backup file, ignored.\n";
+        }
+        next;
+      }
+      open (FONTS_SCALE, $file) || die "can't open file $file: $!";
+      if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+        print "reading $dir/$file ...\n";
+      }
+      while (<FONTS_SCALE>) {
+        if ($ARG =~ /^(.*?)([^:\s]+)\s+(-.+?)\s*$/) { # font name and xlfd found
+          $options = $1;
+          $font = $2;
+          $xlfd = $3;
+          if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+            print "handmade entry found: options=$options font=$font xlfd=$xlfd\n";
+          }
+          if (( $OPT_TTCAP ) && $options =~ /:([0-9]):/) {
+            if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+              print "--ttcap option is set: convert face number to TTCap syntax: fn=$1:\n";
+            }
+            $options = "fn=$1:";
+          }
+          if ( ! $OPT_TTCAP ) {
+            if ($options =~ /fn=([0-9]):/) {
+              if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+                print "--ttcap option is not set: convert face number to freetype syntax: :$1:\n";
+              }
+              $options = ":$1:";
+            } elsif ($options =~ /[a-z=]/i) {
+              # there's more then just a face number, better ignore it 
+              if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+                print "unsupported entry $ARG\n";
+              }
+              next;
+            }
+          }
+          unless ( $font =~ /\.cid$/) {
+            # For font file name entries ending with ".cid", such a file
+            # usually doesn't exist and it doesn't need to. The backend which
+            # renders CID-keyed fonts just parses this name to find the real
+            # font files and mapping tables
+            #
+            # For other entries, we check whether the file exists.
+            if (! -e "$dir/$font") {
+              if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+                print "file $dir/$font doesn't exist, discard entry $ARG\n";
+              }
+              next;
+            }
+          }
+          if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+            print "adding handmade entry $ARG\n";
+          }
+          $fonts_scale_entries{$xlfd} = "${options}${font}";
+          # This font has "handmade" fonts.scale entries.
+          # Add it to the blacklist to discard any entries for this font
+          # which which might have been automatically created
+          # by mkfontscale:
+          $blacklist{$font} = "yes";
+        }
+      }
+      close (FONTS_SCALE);
+    }
+  }
+
+  ######################################################################
+  # Now parse the fonts.scale file automatically created by mkfontscale:
+  $file = "$dir/fonts.scale";
+  open (FONTS_SCALE, $file) || die "can't open file $file: $!";
+  if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+    print "reading $dir/$file ...\n";
+  }
+  while (<FONTS_SCALE>) {
+    if ($ARG =~ /^(.*?)([^:\s]+)\s+(-.+?)\s*$/) { # font name and xlfd found
+      $options = $1;
+      $font = $2;
+      $xlfd = $3;
+      if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+          print "mkfontscale entry found: options=$options font=$font xlfd=$xlfd\n";
+      }
+      # mkfontscale apparently doesn't yet generate the special options for
+      # the freetype module to use different face numbers in .ttc files.
+      # But this might change, therefore it is probably better to check this as well:
+      if ( ( $OPT_TTCAP ) && $options =~ /:([0-9]):/) {
+        if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+          print "--ttcap option is set: convert face number to TTCap syntax: fn=$1:\n";
+        }
+        $options = "fn=$1:";
+      }
+      if ($blacklist{$font}) {
+        if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+          print "$dir/$font is blacklisted, ignored.\n";
+        }
+        next;
+      }
+      $fonts_scale_entries{$xlfd} = "${options}${font}";
+    }
+  }
+  close (FONTS_SCALE);
+
+  ######################################################################
+  # generate an oblique entry if only italic is there and vice versa:
+
+  for my $old_xlfd (keys %fonts_scale_entries) {
+    if ($old_xlfd =~ /(-[^-]+-[^-]+-[^-]+)(-[io]-)([^-]+-[^-]*-\d+-\d+-\d+-\d+-[pmc]-\d+-[^-]+-[^-]+)/i) {
+      my $new_xlfd = "";
+      if ("$2" eq "-i-") {
+        $new_xlfd = "${1}-o-${3}";
+      } else {
+        $new_xlfd = "${1}-i-${3}";
+      }
+      unless ($fonts_scale_entries{$new_xlfd}) {
+        $fonts_scale_entries{$new_xlfd} = $fonts_scale_entries{$old_xlfd};
+        if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+          print "generated o/i: $fonts_scale_entries{$new_xlfd} $new_xlfd\n";
+        }
+      }
+    }
+  }
+
+  ######################################################################
+  # generate TTCap options:
+  if ($OPT_TTCAP) {
+    if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+      print "generating TTCap options  ...\n";
+    }
+    my ($italic, $oblique, $bold, $bold_italic, $bold_oblique);
+    my $artificial_italic = "ai=0.2:";
+    my $doublestrike = "ds=y:";
+    for my $medium (sort (keys %fonts_scale_entries)) {
+      if ($medium !~ /-medium-r-/) {
+        next;
+      }
+      if ($fonts_scale_entries{$medium} !~ /^(.*?)([^:]+)$/) {
+        next; # should not happen ...
+      }
+      $options = $1;
+      $font = $2;
+      if ($font !~ /\.ttf$|\.ttc$|\.otf|\.otc|\.pfa|\.pfb/i) {
+        next; # the freetype module handles TrueType, OpenType, and Type1 fonts.
+      }
+      if ($options) {
+        next; # there are already some TTCap options, better don't touch this
+      }
+      ($italic       = $medium) =~ s/-medium-r-/-medium-i-/;
+      ($oblique      = $medium) =~ s/-medium-r-/-medium-o-/;
+      ($bold         = $medium) =~ s/-medium-r-/-bold-r-/;
+      ($bold_italic  = $medium) =~ s/-medium-r-/-bold-i-/;
+      ($bold_oblique = $medium) =~ s/-medium-r-/-bold-o-/;
+      unless ($fonts_scale_entries{$italic} ||
+              $fonts_scale_entries{$oblique}) {
+        $fonts_scale_entries{$italic}  = "${artificial_italic}${font}";
+        $fonts_scale_entries{$oblique} = "${artificial_italic}${font}";
+        if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+          print "generated TTCap entry: $fonts_scale_entries{$italic} $italic\n";
+          print "generated TTCap entry: $fonts_scale_entries{$oblique} $oblique\n";
+        }
+      }
+      unless ($fonts_scale_entries{$bold}) {
+        $fonts_scale_entries{$bold}  = "${doublestrike}${font}";
+        if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+          print "generated TTCap entry: $fonts_scale_entries{$bold} $bold\n";
+        }
+      }
+      unless ($fonts_scale_entries{$bold_italic} ||
+              $fonts_scale_entries{$bold_oblique}) {
+        $fonts_scale_entries{$bold_italic}  = "${doublestrike}${artificial_italic}${font}";
+        $fonts_scale_entries{$bold_oblique} = "${doublestrike}${artificial_italic}${font}";
+        if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+          print "generated TTCap entry: $fonts_scale_entries{$bold_italic} $bold_italic\n";
+          print "generated TTCap entry: $fonts_scale_entries{$bold_oblique} $bold_oblique\n";
+        }
+      }
+    }
+    # add bw=0.5 option when necessary:
+    for my $xlfd (sort (keys %fonts_scale_entries)) {
+      if ($fonts_scale_entries{$xlfd} !~ /^(.*?)([^:]+)$/) {
+        next; # should not happen ...
+      }
+      $options = $1;
+      $font = $2;
+      if ($font !~ /\.ttf$|\.ttc$|\.otf|\.otc|\.pfa|\.pfb/i) {
+        next; # the new freetype module handles TrueType, OpenType, and Type1 fonts.
+      }
+      if ($options =~ /bw=/) {
+        next; # there is already a bw=<something> TTCap option, better don't touch this
+      }
+      if ($xlfd =~ /c-0-jisx0201.1976-0/) {
+        $fonts_scale_entries{$xlfd} = "${options}bw=0.5:${font}";
+        if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+          print "added bw=0.5 option: $fonts_scale_entries{$xlfd} $xlfd\n";
+        }
+      }
+    }
+  }
+
+  ######################################################################
+  # write final result to fonts.scale:
+
+  $file = "$dir/fonts.scale";
+  open (FONTS_SCALE, ">$file") || die "can't open file $file: $!";
+  if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+    print "writing $dir/$file ...\n";
+  }
+  printf FONTS_SCALE "%d\n", scalar(keys %fonts_scale_entries);
+  for my $xlfd (sort (keys %fonts_scale_entries)) {
+    print FONTS_SCALE "$fonts_scale_entries{$xlfd} $xlfd\n";
+  }
+  close (FONTS_SCALE);
+}
+
+sub make_fonts_scale_and_fonts_dir {
+  my ($dir) = @_;
+  my $timestamp = "$dir/.fonts-config-timestamp";
+  my $try_again = 0;
+  my $command = "";
+
+  my $mkfontscale_bin = search_executable("/usr/bin/mkfontscale");
+  my $mkfontdir_bin   = search_executable("/usr/bin/mkfontdir");
+
+  if ($OPT_FORCE ||
+      mtime_differs_or_missing ("$timestamp","$dir") ||
+      mtime_differs_or_missing ("$timestamp","$dir/fonts.scale") ||
+      mtime_differs_or_missing ("$timestamp","$dir/fonts.dir")) {
+
+    if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+      print "$dir: creating fonts.{scale,dir}\n";
+    }
+
+    # Touch and delete fonts.scale and fonts.dir just to make sure
+    # we are starting from scratch and the directory is writeable:
+    my_system ("touch $dir/fonts.scale $dir/fonts.dir > /dev/null 2>&1");
+    if (!unlink ("$dir/fonts.scale", "$dir/fonts.dir")) {
+      if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+        print "cannot write in $dir: readonly filesystem?\n";
+      }
+      return;
+    }
+
+    create_symbolic_links($dir);
+
+    if ($mkfontscale_bin) {
+      $command = "$mkfontscale_bin $dir";
+      unless ($VERBOSITY >= $VERBOSITY_DEBUG) {
+        $command .= " > /dev/null 2>&1 ";
+      } else {
+        $command .= " 2>&1 ";
+      }
+      my_system ($command);
+    }
+
+    if (! -e "$dir/fonts.scale" ) {
+      if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+        print "mkfontscale is not available or it failed ";
+        print "-> creating an empty fonts.scale file.\n";
+      }
+      $try_again = 1;
+      my_system ("echo 0 > $dir/fonts.scale");
+    }
+
+    fix_fonts_scale($dir);
+
+    if ($mkfontdir_bin) {
+      $command = "$mkfontdir_bin ";
+      if (-d "/usr/share/fonts/encodings") {
+        $command .= " -e /usr/share/fonts/encodings";
+      }
+      if (-d "/usr/share/fonts/encodings/large") {
+        $command .= " -e /usr/share/fonts/encodings/large";
+      }
+      $command .= " $dir";
+      my_system ($command);
+    }
+    if (! -e "$dir/fonts.dir" ) {
+      if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+        print "mkfontdir is not available or it failed -> ";
+      }
+      $try_again = 1;
+      if (-f "$dir/fonts.scale" ){
+        if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+          print "a fonts.scale file exists, copy it to fonts.dir.\n";
+        }
+        my_system ("cp $dir/fonts.scale $dir/fonts.dir");
+      }
+      else {
+        if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+          print "no fonts.scale file exists either, create an empty fonts.dir.\n";
+        }
+        my_system ("echo 0 > $dir/fonts.dir");
+      }
+    }
+
+    # Directory done. Now update time stamps:
+    if ($try_again) {
+      # mkfontscale and/or mkfontdir failed or didn't exist. Remove the
+      # timestamp to make sure this script tries again next time
+      # when the problem with mkfontscale and/or mkfontdir is fixed:
+      unlink ("$timestamp");
+    }
+    else {
+      # fonts.cache-* files are now generated in /var/cache/fontconfig,
+      # remove old cache files in the individual directories
+      # (fc-cache does this as well when the cache files are out of date
+      # but it can't hurt to remove them here as well just to make sure).
+      for my $file (glob ("$dir/fonts.cache-*")) {
+        if (-e "$file") {
+          unlink ("$file");
+        }
+      }
+      if (! -e $timestamp) {
+        my_system ("touch $timestamp");
+      }
+      utime ($script_start_time, $script_start_time,
+             ("$dir/fonts.dir", "$dir/fonts.scale", $timestamp, $dir));
+    }
+  }
+  else {
+    if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+      print "$dir is up to date\n"
+    }
+  }
+}
+
+# Returns true if the modification time of $f1 differs from
+# the modification time of $f2 
+sub mtime_differs {
+  my ($f1,$f2) = @_;
+  if ( -e $f1 && -e $f2) {
+    my @f1s = stat ($f1);
+    my @f2s = stat ($f2);
+    return ($f1s[9] != $f2s[9]);
+  } else {
+    return 0;
+  }
+}
+
+# Returns true if the modification time of $f1 differs from
+# the modification time of $f2 or if one of the files is missing
+sub mtime_differs_or_missing {
+    my ($f1,$f2) = @_;
+    if (! -e $f1 || ! -e $f2 || mtime_differs ($f1,$f2)) {
+      return 1;
+    } else {
+      return 0;
+    }
+}
+
+# create symbolic links for files which have characters in
+# their name which are impossible to use in the file name in
+# fonts.dir
+sub create_symbolic_links {
+  my ($dir) = @_;
+
+  my $cwd;
+  chomp ($cwd = `pwd`);
+  chdir $dir || die "Can't cd to $dir: $!\n";
+
+  my @forbidden_characters = (" ", ":");
+  for my $file (glob ("*.*")) {
+    for my $forbidden_character (@forbidden_characters) {
+      if ($file =~ /$forbidden_character/) {
+        my $file_new;
+        ($file_new = $file) =~ s/$forbidden_character/_/g;
+        my_symlink ($file, $file_new);
+      }
+    }
+  }
+
+  chdir $cwd || die "Can't cd to $cwd: $!\n";
+}
+
+########################################################################
+#
+# rendering_options -- reflect fonts-config syconfig variables or
+#    parameters in fontconfig setting to control rendering
+#
+
+sub rendering_options {
+  my ($user) = @_;
+  my $suse_rendering_file;
+  my $suse_rendering_template_file = $files{'rendering config template'};
+  my $suse_rendering = "";
+  my $suse_rendering_template = "";
+
+  if (!$user) {
+    $suse_rendering_file = $files{'rendering config'};
+  }
+  else {
+    $suse_rendering_file = $xdg_prefix . $files{'user rendering config'};
+    my_make_path(dirname($suse_rendering_file));
+  }
+
+  if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+    printf "--- generating  $suse_rendering_file ---\n";
+  }
+
+  if (-f "$suse_rendering_template_file") {
+    open (TEMPLATE, "$suse_rendering_template_file") || die "can't open file $suse_rendering_template_file: $!";
+    binmode TEMPLATE, ":utf8";
+    while (<TEMPLATE>) {
+      if ($ARG =~ /_FORCE_HINTSTYLE_PLACEHOLDER_/) {
+        if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+          printf "--- forcing hintstyle: $OPT_FHINTSTYLE\n";
+        }
+        $ARG =~ s/_FORCE_HINTSTYLE_PLACEHOLDER_/$OPT_FHINTSTYLE/;
+        $suse_rendering_template .= $ARG;
+      }
+      elsif ($ARG =~ /_FORCE_AUTOHINT_PLACEHOLDER_/) {
+        if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+          printf "--- forcing autohint: $OPT_FAUTOHINT\n";
+        }
+        if ($OPT_FAUTOHINT) {
+          $ARG =~ s/_FORCE_AUTOHINT_PLACEHOLDER_/true/;
+        } else {
+          $ARG =~ s/_FORCE_AUTOHINT_PLACEHOLDER_/false/;
+        }
+        $suse_rendering_template .= $ARG;
+      }
+      elsif ($ARG =~ /_FORCE_BW_PLACEHOLDER_/) {
+        if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+          printf "--- force black and white: $OPT_FBW\n";
+        }
+        if ($OPT_FBW) {
+          $ARG =~ s/_FORCE_BW_PLACEHOLDER_/true/;
+        } else {
+          $ARG =~ s/_FORCE_BW_PLACEHOLDER_/false/;
+        }
+        $suse_rendering_template .= $ARG;
+      }
+      elsif ($ARG =~ /_FORCE_BW_MONOSPACE_PLACEHOLDER_/) {
+        if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+          printf "--- force black and white for good hinted monospace: $OPT_FBWMONOSPACE\n";
+        }
+        if ($OPT_FBWMONOSPACE) {
+          $ARG =~ s/_FORCE_BW_MONOSPACE_PLACEHOLDER_/true/;
+        } else {
+          $ARG =~ s/_FORCE_BW_MONOSPACE_PLACEHOLDER_/false/;
+        }
+        $suse_rendering_template .= $ARG;
+      }
+      elsif ($ARG =~ /_USE_LCDFILTER_PLACEHOLDER_/) {
+        if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+          printf "--- lcdfilter: $OPT_LCDFILTER\n";
+        }
+        $ARG =~ s/_USE_LCDFILTER_PLACEHOLDER_/$OPT_LCDFILTER/;
+        $suse_rendering_template .= $ARG;
+      }
+      elsif ($ARG =~ /_USE_RGBA_PLACEHOLDER_/) {
+        if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+          printf "--- subpixel arrangement: $OPT_RGBA\n";
+        }
+        $ARG =~ s/_USE_RGBA_PLACEHOLDER_/$OPT_RGBA/;
+        $suse_rendering_template .= $ARG;
+      }
+      elsif ($ARG =~ /_USE_EMBEDDED_BITMAPS_PLACEHOLDER_/) {
+        if (! $OPT_EBITMAP) {
+          $suse_rendering_template .= "\t<match target=\"font\">\n";
+          $suse_rendering_template .= "\t\t<edit name=\"embeddedbitmap\" mode=\"assign\">\n";
+          $suse_rendering_template .= "\t\t\t<bool>false</bool>\n";
+          $suse_rendering_template .= "\t\t</edit>\n";
+          $suse_rendering_template .= "\t</match>\n";
+        } elsif ($OPT_EBITMAP && $OPT_EBITMAP_LANG =~ /0/) {
+          $suse_rendering_template .= "\t<match target=\"font\">\n";
+          $suse_rendering_template .= "\t\t<edit name=\"embeddedbitmap\" mode=\"assign\">\n";
+          $suse_rendering_template .= "\t\t\t<bool>true</bool>\n";
+          $suse_rendering_template .= "\t\t</edit>\n";
+          $suse_rendering_template .= "\t</match>\n";
+        } else {
+          $suse_rendering_template .= "\t<match target=\"font\">\n";
+          $suse_rendering_template .= "\t\t<edit name=\"embeddedbitmap\" mode=\"assign\">\n";
+          $suse_rendering_template .= "\t\t\t<bool>false</bool>\n";
+          $suse_rendering_template .= "\t\t</edit>\n";
+          $suse_rendering_template .= "\t</match>\n";
+          my @languages = split (":", "$OPT_EBITMAP_LANG");
+          for my $i (@languages) {
+            $suse_rendering_template .= "\t<match target=\"font\">\n";
+            $suse_rendering_template .= "\t\t<test name=\"lang\" compare=\"contains\"><string>$i</string></test>\n";
+            $suse_rendering_template .= "\t\t<edit name=\"embeddedbitmap\" mode=\"assign\"><bool>true</bool></edit>\n";
+            $suse_rendering_template .= "\t</match>\n";
+          }
+        }
+      }
+      elsif ($ARG =~ /_SYSCONFIG_FILE_PLACEHOLDER_/) {
+        my $arg = ($user ? " -\\-user" : "");
+        $ARG =~ s/_SYSCONFIG_FILE_PLACEHOLDER_/$files{'sysconfig file'}/;
+        $ARG =~ s/_FONTSCONFIG_RUN_PLACEHOLDER_/$0$arg/;
+        $suse_rendering_template .= $ARG;
+      }
+      elsif ($ARG =~ /_METRIC_ALIASES_PLACEHOLDER_/) {
+        if ($OPT_SEARCH_METRIC_COMPATIBLE) {
+          $ARG =~ s/_METRIC_ALIASES_PLACEHOLDER_/true/;
+        } else {
+          $ARG =~ s/_METRIC_ALIASES_PLACEHOLDER_/false/;
+        }
+        $suse_rendering_template .= $ARG;
+      }
+      elsif ($ARG =~ /_INCLUDE_USER_RENDERING_PLACEHOLDER_/) {
+        if (!$user) {
+          # let user have a possibility to override system settings
+          $ARG =~ s@_INCLUDE_USER_RENDERING_PLACEHOLDER_@<include ignore_missing="yes" prefix="xdg">$files{'user rendering config'}</include>@;
+          $suse_rendering_template .= $ARG;
+        }
+      }
+      else {
+        $suse_rendering_template .= $ARG;
+      }
+    }
+    close (TEMPLATE);
+    if (open (CONF, "$suse_rendering_file")) {
+      while (<CONF>) {
+        $suse_rendering .= $ARG;
+      }
+      close (CONF);
+    }
+    if ("$suse_rendering_template" eq "$suse_rendering") {
+      if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+        printf "--- $suse_rendering_file unchanged ---\n";
+      }
+    } else {
+      if ($VERBOSITY == $VERBOSITY_VERBOSE) {
+        print "Setting embedded bitmap usage in $suse_rendering_file\n";
+      }
+      if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+        printf "--- writing $suse_rendering_file ---\n";
+      }
+      open (CONF, ">$suse_rendering_file") || die "can't open file $suse_rendering_file: $!";
+      print CONF $suse_rendering_template;
+      close (CONF);
+    }
+  } else {
+      if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+        print "--- WARNING: $suse_rendering_template_file doesn't exist!\n";
+      }
+  }
+
+  if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+    printf "---\n";
+  }
+}
+
+########################################################################
+#
+# family_preference_config -- reflect fonts-config syconfig variables or
+#    parameters in fontconfig setting to control rendering
+#
+
+sub family_preference_list {
+  my ($family, $prefered_families, $user) = @_;
+  my $cfg;
+  
+  my @families = split(/:/, $prefered_families);
+  
+  if (! $prefered_families) {
+    return "";
+  }
+
+  if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+    if (! $OPT_FORCE_FPL) {
+      print "--- Prefered $family families: ";
+    } else {
+      print "--- Strongly prefered $family families: ";
+    }
+  }
+
+  $family =~ s/&/&amp;/g;
+
+  if (! $OPT_FORCE_FPL) {
+    $cfg .= "\t<alias>\n";
+    if (!$user) {
+      $cfg .= "\t\t<test name=\"user_preference_list\"><bool>false</bool></test>\n"
+    }
+    $cfg .= "\t\t<family>$family</family>\n";
+    $cfg .= "\t\t<prefer>\n";
+    for my $f (@families) {
+      # remove comma and the rest of the family string [bsc#998300]
+      $f =~ s/,.*//;
+      $f =~ s/&/&amp;/g;
+      $cfg .= "			<family>$f</family>\n";
+      if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+        print "[$f] ";
+      }
+    }
+    $cfg .= "\t\t</prefer>\n";
+    $cfg .= "\t</alias>\n";
+  } else {
+    $cfg .= "\t<match>\n";
+    $cfg .= "\t\t<test name=\"family\"><string>$family</string></test>\n";
+    $cfg .= "\t\t<edit name=\"family\" mode=\"prepend_first\" binding=\"strong\">\n";
+    for my $f (@families) {
+      $f =~ s/&/&amp;/g;
+      $cfg .= "			<string>$f</string>\n";
+      if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+        print "[$f] ";
+      }
+    }
+    $cfg .= "\t\t</edit>\n";
+    $cfg .= "\t</match>\n";
+  }
+  if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+    print "\n";
+  }
+
+  return $cfg;  
+}
+
+sub family_metric_compatibility  {
+  my ($fontconfig_metric_conf, $user) = @_;
+  my $suse_metric = "";
+
+  if (-f "$fontconfig_metric_conf") {
+    open (CONF, "$fontconfig_metric_conf") || die "can't open file $fontconfig_metric_conf: $!";
+    binmode CONF, ":utf8";
+    while (<CONF>) {
+      $suse_metric .= $ARG;
+      if ($ARG =~ /<alias.*>/) {
+        $suse_metric .= "\t  <test name=\"search_metric_aliases\"><bool>true</bool></test>\n"
+      } elsif ($ARG =~ /<!DOCTYPE.*>/) {
+        $suse_metric .= "\n";
+        $suse_metric .= "<!-- DO NOT EDIT; this is a generated file -->\n";
+        $suse_metric .= "<!-- modify $files{($user ? 'user syconfig file' : 'sysconfig file')} && run $0 instead -->\n";
+        $suse_metric .= "\n";
+      }
+    }
+    close (CONF);
+  } else {
+      if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+        print "--- WARNING: $fontconfig_metric_conf doesn't exist!\n";
+      }
+  }
+
+  return $suse_metric;
+}
+
+sub family_preference_config {
+  my ($user) = @_;
+  my $suse_pref_file = $files{'local family list'};
+  my $suse_metric_file = $files{'metric compatibility config'};
+  my $metric_symlink = $files{'metric compatibility symlink'};
+  my $metric_avail = $files{'metric compatibility avail'};
+  my $suse_metric = "";
+  my $suse_pref = "";
+  my $edit_options;
+
+  if (!$user) {
+    $suse_pref_file = $files{'local family list'};
+  }
+  else {
+    $suse_pref_file = $xdg_prefix . $files{'user family list'};
+    my_make_path(dirname($suse_pref_file));
+  }
+
+  if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+    printf "--- generating  $suse_pref_file ---\n";
+  }
+
+  if (!$user)
+  {
+    if (-e $metric_avail) {
+      # replace fontconfig's /etc/fonts/conf.d/30-metric-aliases.conf
+      # by fonts-config's one
+
+      if (-l $metric_symlink) {
+        my_remove_symlink($metric_symlink);
+      }
+
+      $suse_metric .= family_metric_compatibility($metric_avail, $user);
+
+      if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+        print "--- writing $suse_metric_file ---\n";
+        print "---\n";
+      }
+      # same name as symlink from fontconfig
+      open (CONF, ">$suse_metric_file") || die "can't open file $suse_metric_file: $!";
+      print CONF $suse_metric;
+      close (CONF);
+    }
+    else {
+      if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+        print "--- WARNING: $metric_avail not found, not writing $suse_metric_file ---\n";
+        print "---\n";
+      }
+    }
+  }
+
+  $suse_pref .= "<?xml version=\"1.0\"?>\n";
+  $suse_pref .= "<!DOCTYPE fontconfig SYSTEM \"fonts.dtd\">\n";
+  $suse_pref .= "\n";
+  $suse_pref .= "<!-- DO NOT EDIT; this is a generated file -->\n";
+  $suse_pref .= "<!-- modify $files{($user ? 'user sysconfig file' : 'sysconfig file')} && run $0" . ($user ? " -\\-user" : "") . " instead -->\n";
+  $suse_pref .= "\n";
+  $suse_pref .= "<fontconfig>\n";
+  if (!$user) {
+    $suse_pref .= "\t<!-- Let user override here defined system setting. -->\n";
+    $suse_pref .= "\t<match target=\"pattern\">\n";
+    $suse_pref .= "\t\t<edit name=\"user_preference_list\" mode=\"assign\">\n";
+    $suse_pref .= "\t\t\t<bool>false</bool>\n";
+    $suse_pref .= "\t\t</edit>\n";
+    $suse_pref .= "\t</match>\n";
+    $suse_pref .= "\t<include ignore_missing=\"yes\" prefix=\"xdg\">fontconfig/family-prefer.conf</include>\n";
+  }
+  else {
+    $suse_pref .= "\t<match target=\"pattern\">\n";
+    $suse_pref .= "\t\t<edit name=\"user_preference_list\" mode=\"assign\">\n";
+    $suse_pref .= "\t\t\t<bool>true</bool>\n";
+    $suse_pref .= "\t\t</edit>\n";
+    $suse_pref .= "\t</match>\n";
+  }
+  $suse_pref .= "\n";
+  $suse_pref .= family_preference_list("sans-serif", $OPT_SANS_FAMILIES, $user);
+  $suse_pref .= family_preference_list("serif", $OPT_SERIF_FAMILIES, $user);
+  $suse_pref .= family_preference_list("monospace", $OPT_MONO_FAMILIES, $user);
+  $suse_pref .= "</fontconfig>\n";
+
+  if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+    print "--- writing $suse_pref_file ---\n";
+    print "---\n";
+  }
+  open (CONF, ">$suse_pref_file") || die "can't open file $suse_pref_file: $!";
+  print CONF $suse_pref;
+  close (CONF);
+}
+
+########################################################################
+#
+# run_fccache -- run XXbit fc-cache
+#
+
+sub run_fccache {
+  my ($bits) = @_;
+  my $bits_print = "";
+  my $command = "";
+  my $fc_cache_bin = search_executable("/usr/bin/fc-cache$bits");
+  my $fc_cache_exit_status = 256;
+
+  if ($bits) {
+    $bits_print = " ${bits}bit";     
+  }
+  if ($fc_cache_bin) {
+    $command = "$fc_cache_bin";
+    if ($VERBOSITY == $VERBOSITY_VERBOSE) {
+      print "Creating$bits_print cache files for fontconfig ";
+    }
+    if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+      print "--- Creating$bits_print cache files for fontconfig ";
+    }
+    if ($VERBOSITY >= $VERBOSITY_VERBOSE) {
+      $command .= " --verbose ";
+    }
+    if ($VERBOSITY == $VERBOSITY_VERBOSE) { # with "progress bar"
+      open (FC_CACHE, "$command |");
+      select (STDOUT);
+      $OUTPUT_AUTOFLUSH = 1;
+      while(<FC_CACHE>) {
+        print ".";
+      }
+      print "\n";
+      close (FC_CACHE);
+    }
+    else { # without "progress bar"
+      my_system($command);
+    }
+
+    $fc_cache_exit_status = $CHILD_ERROR;
+    if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+      print "exit status of fc-cache: $fc_cache_exit_status\n";
+      print "---\n";
+    }
+  }  
+}
+
+########################################################################
+#  
+# run_fp_rehash -- run xset fp rehash
+#
+
+sub run_fp_rehash {
+  my $xset_bin = search_executable("/usr/bin/xset");
+  my $command = "";
+  if ($xset_bin) {
+    if ($ENV{DISPLAY} && $ENV{DISPLAY} =~ /^:[0-9].*/) {
+      # it's a local display
+      $command = "$xset_bin fp rehash ";
+      if ($VERBOSITY == $VERBOSITY_VERBOSE) {
+        print "Rereading the font databases in the current font path ...\n";
+      }
+      if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+        print "--- running xset fp rehash\n";
+      }
+      else {
+        $command .= " > /dev/null 2>&1 ";
+      }
+      my_system ($command);
+      if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+        print "---\n";
+      }
+    }
+    else {
+      if ($VERBOSITY == $VERBOSITY_VERBOSE) {
+        print "It is not a local display, do not reread X font databases for now\n";
+      }
+      if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+        print "--- NOTE: do not run 'xset fp rehash', no local display detected\n";
+      }
+    }
+  }
+}
+
+########################################################################
+#
+# generate font setup for Java (for Latin1, Japanese, Chinese and Korean)
+#
+
+sub generate_java_font_setup {
+  my @fontconfig_SuSE_properties_globs = $files{'java fontconfig properties'};
+  my $fontconfig_SuSE_properties_template_file = $files{'java fontconfig properties template'};
+  my $fontconfig_SuSE_properties_template = "";
+  my @sans_japanese_priority = ("MS Gothic",
+                                "HGGothicB",
+                                "IPAPGothic",
+                                "IPAexGothic",
+                                "Sazanami Gothic");
+  my @mono_japanese_priority = ("MS Gothic",
+                                "HGGothicB",
+                                "IPAGothic",
+                                "Sazanami Gothic");
+  my @serif_japanese_priority = ("MS Mincho",
+                                 "HGMinchoL",
+                                 "IPAPMincho",
+                                 "IPAexMincho",
+                                 "Sazanami Mincho");
+  my @sans_simplified_chinese_priority = ("FZSongTi",
+                                          "AR PL ShanHeiSun Uni",
+                                          "AR PL SungtiL GB");
+  my @serif_simplified_chinese_priority = ("FZSongTi",
+                                           "AR PL ShanHeiSun Uni",
+                                           "AR PL SungtiL GB");
+  my @sans_traditional_chinese_priority = ("AR PL ShanHeiSun Uni",
+                                           "FZMingTiB",
+                                           "AR PL Mingti2L Big5");
+  my @serif_traditional_chinese_priority = ("AR PL ShanHeiSun Uni",
+                                            "FZMingTiB",
+                                            "AR PL Mingti2L Big5");
+  my @sans_korean_priority = ("UnDotum",
+                              "Baekmuk Gulim",
+                              "Baekmuk Dotum");
+  my @serif_korean_priority = ("UnBatang",
+                               "Baekmuk Batang");
+  my @sans_latin1_priority = ("DejaVu Sans:style=Book:width=100",   # fc-list $font file should return only one result
+                              "Liberation Sans:style=Regular",      # otherwise last one is taken in present 
+                              "Droid Sans:style=Regular");          # generate_java_font_setup() structure 
+  my @mono_latin1_priority = ("DejaVu Sans Mono:style=Book",
+                              "Liberation Mono:style=Regular",
+                              "Droid Sans Mono:style=Regular");
+  my @serif_latin1_priority = ("DejaVu Serif:style=Book:width=100",
+                               "Liberation Serif:style=Regular",
+                               "Droid Serif:style=Regular");
+  my %cjk_xlfds =
+    (
+     "MS Gothic"            , "-ricoh-ms gothic-",
+     "HGGothicB"            , "-ricoh-hggothicb-",
+     "IPAGothic"            , "-misc-ipagothic-",
+     "IPAPGothic"           , "-misc-ipapgothic-",
+     "IPAexGothic"          , "-misc-ipaexgothic-",
+     "Sazanami Gothic"      , "-misc-sazanami gothic-",
+     "MS Mincho"            , "-ricoh-ms mincho-",
+     "HGMinchoL"            , "-ricoh-hgminchol-",
+     "IPAMincho"            , "-misc-ipamincho-",
+     "IPAPMincho"           , "-misc-ipapmincho-",
+     "IPAexMincho"          , "-misc-ipaexmincho-",
+     "Sazanami Mincho"      , "-misc-sazanami mincho-",
+     "FZSongTi"             , "-*-SongTi-",
+     "FZMingTiB"            , "-*-MingTiB-",
+     "AR PL ShanHeiSun Uni" , "-*-ar pl shanheisun uni-",
+     "AR PL SungtiL GB"     , "-arphic-ar pl sungtil gb-",
+     "AR PL Mingti2L Big5"  , "-arphic-ar pl mingti2l big5-",
+     "UnDotum"              , "-misc-undotum-",
+     "Baekmuk Gulim"        , "-baekmukttf-gulim-",
+     "Baekmuk Dotum"        , "-baekmukttf-dotum-",
+     "UnBatang"             , "-misc-unbatang-",
+     "Baekmuk Batang"       , "-baekmukttf-batang-"
+    );
+  my $sans_japanese_xlfd = "-misc-sazanami gothic-";
+  my $sans_japanese_file = "/usr/share/fonts/truetype/sazanami-gothic.ttf";
+  my $mono_japanese_xlfd = "-misc-sazanami gothic-";
+  my $mono_japanese_file = "/usr/share/fonts/truetype/sazanami-gothic.ttf";
+  my $serif_japanese_xlfd = "-misc-sazanami mincho-";
+  my $serif_japanese_file = "/usr/share/fonts/truetype/sazanami-mincho.ttf";
+  my $sans_simplified_chinese_xlfd = "-arphic-ar pl sungtil gb-";
+  my $sans_simplified_chinese_file = "/usr/share/fonts/truetype/gbsn00lp.ttf";
+  my $serif_simplified_chinese_xlfd = "-arphic-ar pl sungtil gb-";
+  my $serif_simplified_chinese_file = "/usr/share/fonts/truetype/gbsn00lp.ttf";
+  my $sans_traditional_chinese_xlfd = "-arphic-ar pl mingti2l big5-";
+  my $sans_traditional_chinese_file = "/usr/share/fonts/truetype/bsmi00lp.ttf";
+  my $serif_traditional_chinese_xlfd = "-arphic-ar pl mingti2l big5-";
+  my $serif_traditional_chinese_file = "/usr/share/fonts/truetype/bsmi00lp.ttf";
+  my $sans_korean_xlfd = "-baekmukttf-dotum-";
+  my $sans_korean_file = "/usr/share/fonts/truetype/dotum.ttf";
+  my $serif_korean_xlfd = "-baekmukttf-batang-";
+  my $serif_korean_file = "/usr/share/fonts/truetype/batang.ttf";
+  my $sans_latin1_xlfd = "";
+  my $sans_latin1_file = "";
+  my $mono_latin1_xlfd = "";
+  my $mono_latin1_file = "";
+  my $serif_latin1_xlfd = "";
+  my $serif_latin1_file = "";
+
+
+  if ($VERBOSITY == $VERBOSITY_VERBOSE) {
+    printf "generating java font setup ...\n";
+  }
+  if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+    printf "--- generating java font setup\n";
+  }
+
+  my ($font, $file);
+  ($font, $file) = select_java_font("sans serif", "Japanese", \@sans_japanese_priority);
+  $sans_japanese_xlfd = $cjk_xlfds{"$font"} if $font;
+  $sans_japanese_file = $file if $file;
+  ($font, $file) = select_java_font("monospace", "Japanese", \@mono_japanese_priority);
+  $mono_japanese_xlfd = $cjk_xlfds{"$font"} if $font;
+  $mono_japanese_file = $file if $file;
+  ($font, $file) = select_java_font("serif", "Japanese", \@serif_japanese_priority);
+  $serif_japanese_xlfd = $cjk_xlfds{"$font"} if $font;
+  $serif_japanese_file = $file if $file;
+  ($font, $file) = select_java_font("sans", "Simplified Chinese", \@sans_simplified_chinese_priority);
+  $sans_simplified_chinese_xlfd = $cjk_xlfds{"$font"} if $font;
+  $sans_simplified_chinese_file = $file if $file;
+  ($font, $file) = select_java_font("serif", "Simplified Chinese", \@serif_simplified_chinese_priority);
+  $serif_simplified_chinese_xlfd = $cjk_xlfds{"$font"} if $font;
+  $serif_simplified_chinese_file = $file if $file;
+  ($font, $file) = select_java_font("sans", "Traditional Chinese", \@sans_traditional_chinese_priority);
+  $sans_traditional_chinese_xlfd = $cjk_xlfds{"$font"} if $font;
+  $sans_traditional_chinese_file = $file if $file;
+  ($font, $file) = select_java_font("serif", "Traditional Chinese", \@serif_traditional_chinese_priority);
+  $serif_traditional_chinese_xlfd = $cjk_xlfds{"$font"} if $font;
+  $serif_traditional_chinese_file = $file if $file;
+  ($font, $file) = select_java_font("sans", "Korean", \@sans_korean_priority);
+  $sans_korean_xlfd = $cjk_xlfds{"$font"} if $font;
+  $sans_korean_file = $file if $file;
+  ($font, $file) = select_java_font("serif", "Korean", \@serif_korean_priority);
+  $serif_korean_xlfd = $cjk_xlfds{"$font"} if $font;
+  $serif_korean_file = $file if $file;
+  ($font, $file) = select_java_font("sans serif", "Latin 1", \@sans_latin1_priority);
+  $font =~ s/:.*$// if $font;
+  ($sans_latin1_xlfd = "-misc-$font-") =~ tr/[A-Z]/[a-z]/ if $font;
+  $sans_latin1_file = $file if $file;
+  ($font, $file) = select_java_font("monospace", "Latin 1", \@mono_latin1_priority);
+  $font =~ s/:.*$// if $font;
+  ($mono_latin1_xlfd = "-misc-$font-") =~ tr/[A-Z]/[a-z]/ if $font;
+  $mono_latin1_file = $file if $file;
+  ($font, $file) = select_java_font("serif", "Latin 1", \@serif_latin1_priority);
+  $font =~ s/:.*$// if $font;
+  ($serif_latin1_xlfd = "-misc-$font-") =~ tr/[A-Z]/[a-z]/ if $font;
+  $serif_latin1_file = $file if $file;
+
+  (my $sans_japanese_xlfd_no_space = $sans_japanese_xlfd) =~ s/ /_/g;
+  (my $mono_japanese_xlfd_no_space = $mono_japanese_xlfd) =~ s/ /_/g;
+  (my $serif_japanese_xlfd_no_space = $serif_japanese_xlfd) =~ s/ /_/g;
+  (my $sans_simplified_chinese_xlfd_no_space = $sans_simplified_chinese_xlfd) =~ s/ /_/g;
+  (my $serif_simplified_chinese_xlfd_no_space = $serif_simplified_chinese_xlfd) =~ s/ /_/g;
+  (my $sans_traditional_chinese_xlfd_no_space = $sans_traditional_chinese_xlfd) =~ s/ /_/g;
+  (my $serif_traditional_chinese_xlfd_no_space = $serif_traditional_chinese_xlfd) =~ s/ /_/g;
+  (my $sans_korean_xlfd_no_space = $sans_korean_xlfd) =~ s/ /_/g;
+  (my $serif_korean_xlfd_no_space = $serif_korean_xlfd) =~ s/ /_/g;
+  (my $sans_latin1_xlfd_no_space = $sans_latin1_xlfd) =~ s/ /_/g;
+  (my $mono_latin1_xlfd_no_space = $mono_latin1_xlfd) =~ s/ /_/g;
+  (my $serif_latin1_xlfd_no_space = $serif_latin1_xlfd) =~ s/ /_/g;
+
+  if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+    printf ("sans_japanese_file=%s\n", $sans_japanese_file);
+    printf ("sans_japanese_xlfd=%s\n", $sans_japanese_xlfd);
+    printf ("sans_japanese_xlfd_no_space=%s\n", $sans_japanese_xlfd_no_space);
+    printf ("mono_japanese_file=%s\n", $mono_japanese_file);
+    printf ("mono_japanese_xlfd=%s\n", $mono_japanese_xlfd);
+    printf ("mono_japanese_xlfd_no_space=%s\n", $mono_japanese_xlfd_no_space);
+    printf ("serif_japanese_file=%s\n", $serif_japanese_file);
+    printf ("serif_japanese_xlfd=%s\n", $serif_japanese_xlfd);
+    printf ("serif_japanese_xlfd_no_space=%s\n", $serif_japanese_xlfd_no_space);
+    printf ("sans_simplified_chinese_file=%s\n", $sans_simplified_chinese_file);
+    printf ("sans_simplified_chinese_xlfd=%s\n", $sans_simplified_chinese_xlfd);
+    printf ("sans_simplified_chinese_xlfd_no_space=%s\n", $sans_simplified_chinese_xlfd_no_space);
+    printf ("serif_simplified_chinese_file=%s\n", $serif_simplified_chinese_file);
+    printf ("serif_simplified_chinese_xlfd=%s\n", $serif_simplified_chinese_xlfd);
+    printf ("serif_simplified_chinese_xlfd_no_space=%s\n", $serif_simplified_chinese_xlfd_no_space);
+    printf ("sans_traditional_chinese_file=%s\n", $sans_traditional_chinese_file);
+    printf ("sans_traditional_chinese_xlfd=%s\n", $sans_traditional_chinese_xlfd);
+    printf ("sans_traditional_chinese_xlfd_no_space=%s\n", $sans_traditional_chinese_xlfd_no_space);
+    printf ("serif_traditional_chinese_file=%s\n", $serif_traditional_chinese_file);
+    printf ("serif_traditional_chinese_xlfd=%s\n", $serif_traditional_chinese_xlfd);
+    printf ("serif_traditional_chinese_xlfd_no_space=%s\n", $serif_traditional_chinese_xlfd_no_space);
+    printf ("sans_korean_file=%s\n", $sans_korean_file);
+    printf ("sans_korean_xlfd=%s\n", $sans_korean_xlfd);
+    printf ("sans_korean_xlfd_no_space=%s\n", $sans_korean_xlfd_no_space);
+    printf ("serif_korean_file=%s\n", $serif_korean_file);
+    printf ("serif_korean_xlfd=%s\n", $serif_korean_xlfd);
+    printf ("serif_korean_xlfd_no_space=%s\n", $serif_korean_xlfd_no_space);
+    printf ("sans_latin1_file=%s\n", $sans_latin1_file);
+    printf ("sans_latin1_xlfd=%s\n", $sans_latin1_xlfd);
+    printf ("sans_latin1_xlfd_no_space=%s\n", $sans_latin1_xlfd_no_space);
+    printf ("mono_latin1_file=%s\n", $mono_latin1_file);
+    printf ("mono_latin1_xlfd=%s\n", $mono_latin1_xlfd);
+    printf ("mono_latin1_xlfd_no_space=%s\n", $mono_latin1_xlfd_no_space);
+    printf ("serif_latin1_file=%s\n", $serif_latin1_file);
+    printf ("serif_latin1_xlfd=%s\n", $serif_latin1_xlfd);
+    printf ("serif_latin1_xlfd_no_space=%s\n", $serif_latin1_xlfd_no_space);
+  }
+
+  # I hope it is good enough to get the font directory from the full
+  # path of the Japanese sans serif file.
+  # Probably all fonts are in the same directory:
+  (my $x11fontdir = $sans_japanese_file) =~ s/\/[^\/]+$//;
+
+  if (-f "$fontconfig_SuSE_properties_template_file") {
+    open (TEMPLATE, "$fontconfig_SuSE_properties_template_file") || die "can't open file $fontconfig_SuSE_properties_template_file: $!";
+    binmode TEMPLATE, ":utf8";
+    while (<TEMPLATE>) {
+      $ARG =~ s/_SANS_JAPANESE_XLFD_NO_SPACE_/$sans_japanese_xlfd_no_space/g;
+      $ARG =~ s/_SANS_JAPANESE_FILE_/$sans_japanese_file/g;
+      $ARG =~ s/_SANS_JAPANESE_XLFD_/$sans_japanese_xlfd/g;
+      $ARG =~ s/_MONO_JAPANESE_XLFD_NO_SPACE_/$mono_japanese_xlfd_no_space/g;
+      $ARG =~ s/_MONO_JAPANESE_FILE_/$mono_japanese_file/g;
+      $ARG =~ s/_MONO_JAPANESE_XLFD_/$mono_japanese_xlfd/g;
+      $ARG =~ s/_SERIF_JAPANESE_XLFD_NO_SPACE_/$serif_japanese_xlfd_no_space/g;
+      $ARG =~ s/_SERIF_JAPANESE_FILE_/$serif_japanese_file/g;
+      $ARG =~ s/_SERIF_JAPANESE_XLFD_/$serif_japanese_xlfd/g;
+
+      $ARG =~ s/_SANS_SIMPLIFIED_CHINESE_XLFD_NO_SPACE_/$sans_simplified_chinese_xlfd_no_space/g;
+      $ARG =~ s/_SANS_SIMPLIFIED_CHINESE_FILE_/$sans_simplified_chinese_file/g;
+      $ARG =~ s/_SANS_SIMPLIFIED_CHINESE_XLFD_/$sans_simplified_chinese_xlfd/g;
+      $ARG =~ s/_SERIF_SIMPLIFIED_CHINESE_XLFD_NO_SPACE_/$serif_simplified_chinese_xlfd_no_space/g;
+      $ARG =~ s/_SERIF_SIMPLIFIED_CHINESE_FILE_/$serif_simplified_chinese_file/g;
+      $ARG =~ s/_SERIF_SIMPLIFIED_CHINESE_XLFD_/$serif_simplified_chinese_xlfd/g;
+
+      $ARG =~ s/_SANS_TRADITIONAL_CHINESE_XLFD_NO_SPACE_/$sans_traditional_chinese_xlfd_no_space/g;
+      $ARG =~ s/_SANS_TRADITIONAL_CHINESE_FILE_/$sans_traditional_chinese_file/g;
+      $ARG =~ s/_SANS_TRADITIONAL_CHINESE_XLFD_/$sans_traditional_chinese_xlfd/g;
+      $ARG =~ s/_SERIF_TRADITIONAL_CHINESE_XLFD_NO_SPACE_/$serif_traditional_chinese_xlfd_no_space/g;
+      $ARG =~ s/_SERIF_TRADITIONAL_CHINESE_FILE_/$serif_traditional_chinese_file/g;
+      $ARG =~ s/_SERIF_TRADITIONAL_CHINESE_XLFD_/$serif_traditional_chinese_xlfd/g;
+
+      $ARG =~ s/_SANS_KOREAN_XLFD_NO_SPACE_/$sans_korean_xlfd_no_space/g;
+      $ARG =~ s/_SANS_KOREAN_FILE_/$sans_korean_file/g;
+      $ARG =~ s/_SANS_KOREAN_XLFD_/$sans_korean_xlfd/g;
+      $ARG =~ s/_SERIF_KOREAN_XLFD_NO_SPACE_/$serif_korean_xlfd_no_space/g;
+      $ARG =~ s/_SERIF_KOREAN_FILE_/$serif_korean_file/g;
+      $ARG =~ s/_SERIF_KOREAN_XLFD_/$serif_korean_xlfd/g;
+
+      $ARG =~ s/_SANS_LATIN1_XLFD_NO_SPACE_/$sans_latin1_xlfd_no_space/g;
+      $ARG =~ s/_SANS_LATIN1_FILE_/$sans_latin1_file/g;
+      $ARG =~ s/_SANS_LATIN1_XLFD_/$sans_latin1_xlfd/g;
+      $ARG =~ s/_MONO_LATIN1_XLFD_NO_SPACE_/$mono_latin1_xlfd_no_space/g;
+      $ARG =~ s/_MONO_LATIN1_FILE_/$mono_latin1_file/g;
+      $ARG =~ s/_MONO_LATIN1_XLFD_/$mono_latin1_xlfd/g;
+      $ARG =~ s/_SERIF_LATIN1_XLFD_NO_SPACE_/$serif_latin1_xlfd_no_space/g;
+      $ARG =~ s/_SERIF_LATIN1_FILE_/$serif_latin1_file/g;
+      $ARG =~ s/_SERIF_LATIN1_XLFD_/$serif_latin1_xlfd/g;
+
+      $ARG =~ s/_X11FONTDIR_/$x11fontdir/;
+      $fontconfig_SuSE_properties_template .= $ARG;
+    }
+    close (TEMPLATE);
+    for my $globpattern (@fontconfig_SuSE_properties_globs) {
+      for my $file (glob ("$globpattern")) {
+        if (-f "$file") {
+          if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+            printf "--- writing $file ---\n";
+          }
+          open (FONTPROP, ">$file") || die "can't open file $file: $!";
+          binmode FONTPROP, ":utf8";
+          print FONTPROP $fontconfig_SuSE_properties_template;
+          close (FONTPROP);
+        }
+      }
+    }
+  }
+
+  if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+    printf "---\n";
+  }
+}
+
+sub select_java_font {
+  my ($font_type, $lang, $font_priority) = @_;
+  my $file = "";
+  my $font = "";
+
+  for my $f (@$font_priority) {
+    if (`fc-list "$f"`) {
+      open (NAMES, "fc-list \"$f\" file |");
+      binmode NAMES, ":bytes";
+      while (<NAMES>) {
+        chomp $ARG;
+        $ARG =~ s/:.*$//;
+        if ($ARG =~ /\.ttf|\.ttc/ && -f "$ARG" && ! -l "$ARG") {
+          $file = $ARG;
+          $font = $f;
+        }
+      }
+      close (NAMES);
+      last;
+    }
+  }
+
+  if ($VERBOSITY >= $VERBOSITY_VERBOSE) {
+    if ( ! -f $file ) {
+      print "  warning: cannot find a $lang $font_type font, $lang might not work in Java\n";
+    }
+  }
+
+  return ($font, $file);
+}
+
+########################################################################
+#
+#  reload_xfs_config
+#
+
+sub reload_xfs_config {
+  my $pids;
+
+  if (! -x '/usr/bin/ps') {
+    if ($VERBOSITY >= $VERBOSITY_VERBOSE) {
+      print "--- WARNING: ps command is missing, couldn't search for X Font Server pids\n";
+    }
+    return;
+  }
+
+  $pids = `/usr/bin/ps -C xfs -o pid= | sed 's:[ \t]::g'`;
+  $pids =~ s/\n//;
+
+  if ($pids) {
+    if ($VERBOSITY == $VERBOSITY_VERBOSE) {
+      print "Reloading config file of X Font Server ($pids) ...\n";
+    }    if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+      print "--- reloading config file of X Font Server ($pids)\n";
+    }
+
+    my_system ("kill -USR1 $pids >/dev/null 2>&1");
+
+    if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+      print "---\n";
+    }
+  }
+  elsif ($VERBOSITY >= $VERBOSITY_DEBUG) {
+    print "--- X Font Server not used\n";
+  }
+}
+
+
+########################################################################
+#
+#  common functions
+#
+
+sub my_system {
+  my ($command) = @_;
+  if ($VERBOSITY >= $VERBOSITY_DEBUG)  {
+    print "--- executing: $command\n";
+  }
+  return system ($command);
+}
+
+sub my_symlink {
+  my ($file, $link) = @_;
+  if ($VERBOSITY >= $VERBOSITY_DEBUG)  {
+    print "--- symlink: $link -> $file  .. ";
+  }
+  if (-e $link) {
+    if ($VERBOSITY >= $VERBOSITY_DEBUG)  {
+      print "does exist yet\n";
+    }
+    return;
+  }
+  if (symlink($file, $link)) {
+    if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+      print "success\n";
+    }
+  } else {
+    if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+      print "failure\n";
+    } else {
+      print "--- WARNING: can't create $link -> $file symlink\n"
+    }
+  }
+}
+
+sub my_remove_symlink {
+  my ($link) = @_;
+  if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+    print "--- removing symlink: $link .. ";
+  }
+  if (! -l $link) {
+    if ($VERBOSITY >= $VERBOSITY_DEBUG)  {
+      print "does not exist\n";
+    }
+    return;
+  }
+  if (unlink $link) {
+    if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+      print "success\n";
+    }
+  } else {
+    if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+      print "failure\n";
+    } else {
+      print "--- WARNING: can't remove $link symlink\n"
+    }
+  }
+}
+
+sub my_make_path {
+  my ($dir) = @_;
+  if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+    print "--- creating directory: $dir .. ";
+  }
+  if (-d $dir) {
+    if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+      print "exists\n";
+    }
+    return;
+  }
+  mkpath($dir);
+  if (! -d $dir) {
+    if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+      print "can not create\n";
+    }
+    exit 1;
+  }
+  
+  if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+    print "created\n";
+  }
+}
+
+sub search_executable {
+  for my $file (@_) {
+    if (-x $file) {
+      return $file;
+    }
+  }
+  if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+    print "--- WARNING: no executable from ";
+    print join(", ", @_);
+    print " found\n";
+  }
+  return "";
+}
+
+sub my_remove_file {
+  my ($file) = @_;
+  if (-e $file) {
+    if(unlink $file) {
+      if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+        print "--- $file deleted ";
+      }
+    }
+    else {
+      if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+        print "--- WARNING: can not delete $file ";
+      }
+    }
+  }
+  else {
+    if ($VERBOSITY >= $VERBOSITY_DEBUG) {
+      print "--- WARNING: $file does not exist, can not delete";
+    }
+  }
+}

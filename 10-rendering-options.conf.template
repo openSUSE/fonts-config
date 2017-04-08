@@ -1,0 +1,70 @@
+<?xml version='1.0'?>
+<!DOCTYPE fontconfig SYSTEM 'fonts.dtd'>
+
+<!-- DO NOT EDIT; this is a generated file -->
+<!-- modify _SYSCONFIG_FILE_PLACEHOLDER_ && run _FONTSCONFIG_RUN_PLACEHOLDER_ instead -->
+
+<!-- using target="pattern", because we want to change pattern in 60-family-prefer.conf
+     regarding to this setting -->
+
+<fontconfig>
+	<!-- Choose prefered common hinting style here.  -->
+        <!-- Possible values: no, hitnone, hitslight, hintmedium and hintfull. -->
+	<!-- Can be overriden with some other options, e. g. force_bw
+	     or force_bw_monospace => hintfull -->
+	<match target="pattern" >
+		<edit name="force_hintstyle" mode="assign">
+			<string>_FORCE_HINTSTYLE_PLACEHOLDER_</string>
+		</edit>
+	</match>
+
+	<!-- Force autohint always. -->
+        <!-- If false, for well hinted fonts, their instructions are used for rendering. -->
+	<match target="pattern">
+		<edit name="force_autohint" mode="assign">
+			<bool>_FORCE_AUTOHINT_PLACEHOLDER_</bool>
+		</edit>
+	</match>
+
+	<!-- Do not use font smoothing (black&white rendering) at all.  -->
+	<match target="pattern" >
+		<edit name="force_bw" mode="assign">
+			<bool>_FORCE_BW_PLACEHOLDER_</bool>
+		</edit>
+	</match>
+	<!-- Do not use font smoothing for some monospaced fonts.  -->
+	<!-- Liberation Mono, Courier New, Andale Mono, Monaco, etc. -->
+	<match target="pattern" >
+		<edit name="force_bw_monospace" mode="assign">
+			<bool>_FORCE_BW_MONOSPACE_PLACEHOLDER_</bool>
+		</edit>
+	</match>
+
+        <!-- Set LCD filter. Amend when you want use subpixel rendering. -->
+        <!-- Don't forgot to set correct subpixel ordering in 'rgba' element. -->
+        <!-- Possible values: lcddefault, lcdlight, lcdlegacy, lcdnone -->
+	<match target="pattern">
+		<edit name="lcdfilter" mode="assign">
+			<const>_USE_LCDFILTER_PLACEHOLDER_</const>
+		</edit>
+	</match>
+        <!-- Set LCD subpixel arrangement and orientation.  -->
+        <!-- Possible values: unknown, none, rgb, bgr, vrgb, vbgr. -->
+	<match target="pattern">
+		<edit name="rgba" mode="assign">
+			<const>_USE_RGBA_PLACEHOLDER_</const>
+		</edit>
+	</match>
+
+        _USE_EMBEDDED_BITMAPS_PLACEHOLDER_
+
+        <!-- Search for metric compatible families? -->
+	<match target="pattern" >
+		<edit name="search_metric_aliases" mode="assign">
+			<bool>_METRIC_ALIASES_PLACEHOLDER_</bool>
+		</edit>
+	</match>
+
+        _INCLUDE_USER_RENDERING_PLACEHOLDER_
+</fontconfig>
+
