@@ -1,6 +1,6 @@
 fonts-config
 
-=====
+------
 
 The source for openSUSE's system fontconfig configurations.
 
