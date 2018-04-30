@@ -698,7 +698,8 @@ sub mkfont_scale_dir {
 
 # return existing system font dirs; assume all are under /usr/share/fonts
 sub x11_font_dirs {
-  my @blacklist_dirs = ("/usr/share/fonts", 
+  my @blacklist_dirs = ("/usr/share/fonts",
+                        "/usr/share/fonts/encodings",
                         "/usr/share/fonts/encodings/large");
   my @dirs = split(/\n/,`find -L /usr/share/fonts -type d`);
 
