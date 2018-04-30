@@ -1,0 +1,18 @@
+CJK:
+* 59-family-prefer-lang:
+  + Google Noto embeds Adobe Source Sans Pro as Latin.
+    but Google wants us to use Roboto/Noto Sans for Latin.
+    the CJK prepend needs to prepend Roboto/Noto Sans/Serif
+    too 
+* Noto Sans CJK SC and Noto Sans SC are different font names
+  (The later is a subset of the former). So we need to provide
+  substitutes. ✓
+* Adobe Souce Hans are the same as Google Noto Sans. we need
+  to use Noto to provide Source Hans
+* openSUSE should support colored emojis out of the box. We
+  need to provide a 50-emoji.conf. ✓
+* openSUSE should use modern symbol fonts like Deepin OpenSymbol
+  which is 100% replacement for M$ Wingdings and Symbola ✓
+* We need to re-evaluate the selections in 60-family-prefer.conf
+  specially the CJK part. Most of the fonts listed there are
+  pretty old and have modern replacement.
