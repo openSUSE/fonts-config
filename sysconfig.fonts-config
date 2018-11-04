@@ -12,17 +12,17 @@ VERBOSITY="0"
 ## Path:        Desktop
 ## Description: Display font configuration
 ## Type:        list(none,hintnone,hintslight,hintmedium,hintfull)
-## Default:     none
+## Default:     hintslight
 ## Command:     /usr/sbin/fonts-config
 #
 #  Prefered common hinting style.
 #  
-#  By default, hinslight is prefered for autohinter and hintfull for
+#  By default, hintslight is prefered for autohinter and hintfull for
 #  BCI. You can enforce one hintstyle here. This value is not final
 #  though, hintstyle can be overriden by other option in this file
 #  (e. g. FORCE_BW_MONOSPACE => hintfull)
 #
-FORCE_HINTSTYLE="none"
+FORCE_HINTSTYLE="hintslight"
 
 ## Path:        Desktop
 ## Description: Display font configuration
@@ -60,26 +60,26 @@ FORCE_BW_MONOSPACE="no"
 ## Path:        Desktop
 ## Description: Display font configuration
 ## Type:        list(lcdnone,lcddefault,lcdlight,lcdlegacy)
-## Default:     lcdnone
+## Default:     lcddefault
 ## Command:     /usr/sbin/fonts-config
 #
 # LCD filter.
 #
-# I is mandatory to set to something else than 'lcdnone'
+# It is mandatory to set to something else than 'lcdnone'
 # when you want subpixel rendering. lcddefault seems to
 # be most used value here.
 #
-USE_LCDFILTER="lcdnone"
+USE_LCDFILTER="lcddefault"
 
 ## Path:        Desktop
 ## Description: Display font configuration
 ## Type:        list(none,rgb,vrgb,bgr,vbgr,unknown)
-## Default:     none
+## Default:     rgb
 ## Command:     /usr/sbin/fonts-config
 #
 # Subpixel arrangement for your monitor and its rotation.
 #
-USE_RGBA="none"
+USE_RGBA="rgb"
 
 ## Path:        Desktop
 ## Description: Display font configuration
