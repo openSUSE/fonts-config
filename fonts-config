@@ -654,7 +654,7 @@ sub get_option_defaults_from_sysconfig {
       elsif (eval ("\$$i") =~ /^[0-9]+$/) { # Type integer
         eval("\$$sysconfig_options{$i}=\$$i");
       }
-      elsif (eval ("\$$i") =~ /^[-:a-zA-Z0-9 &,]+$/) { # Type string
+      elsif (eval ("\$$i") =~ /^[-:\p{L}0-9 &,]+$/) { # Type string
         eval("\$$sysconfig_options{$i}=\$$i");
       }
       else { # this case also occurs when the variable is the empty string!
