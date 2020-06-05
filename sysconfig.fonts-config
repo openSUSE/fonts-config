@@ -239,3 +239,13 @@ GENERATE_TTCAP_ENTRIES="yes"
 #
 GENERATE_JAVA_FONT_SETUP="yes"
 
+## Path:        Desktop
+## Description: Modify the default settings in the next fonts-config package update
+## Type:        yesno
+## Default:     no
+#
+# If set to "yes", the fonts-config package will modify the default
+# settings in this file when the package is updated the next time.
+# After doing so, the variable will be set to "no" again.
+#
+FORCE_MODIFY_DEFAULT_FONT_SETTINGS_IN_NEXT_UPDATE="no"
