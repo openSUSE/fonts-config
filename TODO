@@ -2,14 +2,10 @@
   + Google Noto embeds Adobe Source Sans Pro as Latin.
     but Google wants us to use Roboto/Noto Sans for Latin.
     the CJK prepend needs to prepend Roboto/Noto Sans/Serif
-    too ✓
-  + Adobe Source Sans Pro are smaller than Noto Sans, need
-    to resize
+    too (the difference is $IJKgl characters) ✓
 * Noto Sans CJK SC and Noto Sans SC are different font names
   (The later is a subset of the former). So we need to provide
   substitutes. ✓
-* Adobe Souce Hans are the same as Google Noto Sans. we need
-  to use Noto to provide Source Hans
 * openSUSE should support colored emojis out of the box.
   + "emoji" family has been defined by fontconfig. ✓
   + "Symbola" conflicts with color emoji. need to replace it
@@ -21,7 +17,6 @@
     font appeared before Noto Color Emoji are emoji-less)
   + Firefox embeded a "EmojiOne Mozilla" font, which is black
     and white, we need to reject it. ✓
-  + We may need to unset hint/antialias for emoji fonts.
 * openSUSE should use modern symbol fonts like Deepin OpenSymbol
   which is 100% replacement for M$ Wingdings and Symbola ✓
   + packaging of deepin-opensymbol-fonts ✓
@@ -29,5 +24,3 @@
 * We need to re-evaluate the selections in 60-family-prefer.conf
   specially the CJK part. Most of the fonts listed there are
   pretty old and have modern replacement.
-* We need to evaluate Noto fonts and add them to TT/Non-TT Instucted
-  Fonts
