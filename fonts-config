@@ -388,7 +388,8 @@ my %sysconfig_options = (
                          "GENERATE_JAVA_FONT_SETUP"       , "OPT_JAVA",
                         );
 
-my $xdg_prefix = "$ENV{HOME}/.config/";
+my $homedir = defined $ENV{"HOME"} ? $ENV{"HOME"} : (getpwuid $>)[7];
+my $xdg_prefix = "$homedir/.config/";
 my %files = (
                  "sysconfig file",                      "/etc/sysconfig/fonts-config",
                  "user sysconfig file",                 "fontconfig/fonts-config",
