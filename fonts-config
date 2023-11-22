@@ -98,20 +98,6 @@ prefered over system preference list of serif families*).
 
 *) see /etc/fonts/conf.d/60-family-prefer.conf for details
 
-=item B<--(no)metric>
-
-Value of B<--*-families> can be overriden when document 
-or GUI is requesting metric compatible font as defined
-    in /etc/fonts/conf.d/30-metric-aliases.conf,
-e. g. request to Times New Roman will get Liberation Serif
-even if other family is explicitely prefered by B<--serif-families>
-option. (hint, that's because binding="same" in that fontconfig)
-
-You can change this default behaviour with B<--nometric>, but be careful
-with that. Metric compatibility means that every glyph, say 'A', has 
-the same width and height in both fonts, so document should have same 
-line wraps for example.
-
 =item B<--(no)forcefpl>
 
 Value of B<--*-families> can be overriden, when document or GUI is 
@@ -291,10 +277,6 @@ B<--serif-families> option.
 can be set to colon separated list of monospace families, bound to the
 B<--mono-families> option.
 
-=item SEARCH_METRIC_COMPATIBLE
-
-can be set to "yes" or "no" and is bound to B<--(no)metric> option.
-
 =item FORCE_FAMILY_PREFERENCE_LISTS
 
 can be set to "yes" or "no" and is bound to B<--(no)forcefpl> option.
@@ -388,18 +370,13 @@ my %sysconfig_options = (
                          "GENERATE_JAVA_FONT_SETUP"       , "OPT_JAVA",
                         );
 
-my $homedir = defined $ENV{"HOME"} ? $ENV{"HOME"} : (getpwuid $>)[7];
-my $xdg_prefix = "$homedir/.config/";
+my $xdg_prefix = "$ENV{HOME}/.config/";
 my %files = (
                  "sysconfig file",                      "/etc/sysconfig/fonts-config",
                  "user sysconfig file",                 "fontconfig/fonts-config",
                  "rendering config template",           "/usr/share/fonts-config/10-rendering-options.conf.template",
                  "rendering config",                    "/etc/fonts/conf.d/10-rendering-options.conf",
                  "user rendering config",               "fontconfig/rendering-options.conf",
-                 "metric compatibility symlink",        "/etc/fonts/conf.d/30-metric-aliases.conf",
-                 "metric compatibility config",         "/etc/fonts/conf.d/30-metric-aliases.conf",
-                 "metric compatibility avail",          "/usr/share/fontconfig/conf.avail/30-metric-aliases.conf",
-                 "metric compatibility bw symlink",     "/etc/fonts/conf.d/31-metric-aliases-bw.conf",
                  "local family list",                   "/etc/fonts/conf.d/58-family-prefer-local.conf",
                  "user family list",                    "fontconfig/family-prefer.conf",
                  "java fontconfig properties template", "/usr/share/fonts-config/fontconfig.SUSE.properties.template",
@@ -409,7 +386,7 @@ my %files = (
 
 # read sysconfig and userconfig if --user was given
 get_option_defaults_from_sysconfig($files{'sysconfig file'});
-if (grep(/^--user$|^-u$/, @ARGV)) {
+if (grep(/^--user$/, @ARGV)) {
   # read variables on the top on the system ones
   get_option_defaults_from_sysconfig($xdg_prefix.$files{'user sysconfig file'});
 }
@@ -434,7 +411,6 @@ unless (GetOptions(\%opt,
                    'sans-families=s',        \$OPT_SANS_FAMILIES,
                    'serif-families=s',       \$OPT_SERIF_FAMILIES,
                    'mono-families=s',        \$OPT_MONO_FAMILIES,
-                   'metric!',                \$OPT_SEARCH_METRIC_COMPATIBLE,
                    'forcefpl!',              \$OPT_FORCE_FPL,
                    'ttcap!',                 \$OPT_TTCAP,
                    'java!',                  \$OPT_JAVA,
@@ -1346,41 +1322,9 @@ sub family_preference_list {
   return $cfg;  
 }
 
-sub family_metric_compatibility  {
-  my ($fontconfig_metric_conf, $user) = @_;
-  my $suse_metric = "";
-
-  if (-f "$fontconfig_metric_conf") {
-    open (CONF, "$fontconfig_metric_conf") || die "can't open file $fontconfig_metric_conf: $!";
-    binmode CONF, ":utf8";
-    while (<CONF>) {
-      $suse_metric .= $ARG;
-      if ($ARG =~ /<alias.*>/) {
-        $suse_metric .= "\t  <test name=\"search_metric_aliases\"><bool>true</bool></test>\n"
-      } elsif ($ARG =~ /<!DOCTYPE.*>/) {
-        $suse_metric .= "\n";
-        $suse_metric .= "<!-- DO NOT EDIT; this is a generated file -->\n";
-        $suse_metric .= "<!-- modify $files{($user ? 'user syconfig file' : 'sysconfig file')} && run $0 instead -->\n";
-        $suse_metric .= "\n";
-      }
-    }
-    close (CONF);
-  } else {
-      if ($VERBOSITY >= $VERBOSITY_DEBUG) {
-        print "--- WARNING: $fontconfig_metric_conf doesn't exist!\n";
-      }
-  }
-
-  return $suse_metric;
-}
-
 sub family_preference_config {
   my ($user) = @_;
   my $suse_pref_file = $files{'local family list'};
-  my $suse_metric_file = $files{'metric compatibility config'};
-  my $metric_symlink = $files{'metric compatibility symlink'};
-  my $metric_avail = $files{'metric compatibility avail'};
-  my $suse_metric = "";
   my $suse_pref = "";
   my $edit_options;
 
@@ -1394,35 +1338,6 @@ sub family_preference_config {
 
   if ($VERBOSITY >= $VERBOSITY_DEBUG) {
     printf "--- generating  $suse_pref_file ---\n";
-  }
-
-  if (!$user)
-  {
-    if (-e $metric_avail) {
-      # replace fontconfig's /etc/fonts/conf.d/30-metric-aliases.conf
-      # by fonts-config's one
-
-      if (-l $metric_symlink) {
-        my_remove_symlink($metric_symlink);
-      }
-
-      $suse_metric .= family_metric_compatibility($metric_avail, $user);
-
-      if ($VERBOSITY >= $VERBOSITY_DEBUG) {
-        print "--- writing $suse_metric_file ---\n";
-        print "---\n";
-      }
-      # same name as symlink from fontconfig
-      open (CONF, ">$suse_metric_file") || die "can't open file $suse_metric_file: $!";
-      print CONF $suse_metric;
-      close (CONF);
-    }
-    else {
-      if ($VERBOSITY >= $VERBOSITY_DEBUG) {
-        print "--- WARNING: $metric_avail not found, not writing $suse_metric_file ---\n";
-        print "---\n";
-      }
-    }
   }
 
   $suse_pref .= "<?xml version=\"1.0\"?>\n";
