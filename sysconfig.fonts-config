@@ -186,28 +186,6 @@ PREFER_MONO_FAMILIES=""
 ## Default:     yes
 ## Command:     /usr/sbin/fonts-config
 #
-# Perform metric substitutions.
-#
-# When set to yes, value of PREFER_*_FAMILIES can be overriden when document 
-# or GUI is requesting metric compatible font as defined
-#     in /etc/fonts/conf.d/30-metric-aliases.conf,
-# e. g. request to Courier New will get Liberation Mono even if 
-# other family is explicitely prefered by PREFER_MONO_FAMILIES
-# (hint, that's because binding="same" in that fontconfig)
-#
-# You can change this default behaviour with "no", but be careful with that.
-# Metric compatibility means that every glyph, say 'A', has the same width
-# and height in both fonts, so document should have same line wraps for 
-# example.
-#
-SEARCH_METRIC_COMPATIBLE="yes"
-
-## Path:        Desktop
-## Description: Display font configuration
-## Type:        yesno
-## Default:     yes
-## Command:     /usr/sbin/fonts-config
-#
 # Strongly prefer of families in FPL.
 #
 # Brute-force preference of families listed in PREFER_*_FAMILIES. This
