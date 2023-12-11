@@ -386,7 +386,7 @@ my %files = (
 
 # read sysconfig and userconfig if --user was given
 get_option_defaults_from_sysconfig($files{'sysconfig file'});
-if (grep(/^--user$/, @ARGV)) {
+if (grep(/^--user$|^-u$/, @ARGV)) {
   # read variables on the top on the system ones
   get_option_defaults_from_sysconfig($xdg_prefix.$files{'user sysconfig file'});
 }
